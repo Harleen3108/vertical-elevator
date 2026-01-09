@@ -16,11 +16,15 @@ export default function ContactForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Attempting to submit to:", `${API_BASE_URL}/leads`); // Debug Log
+    console.log("Attempting to submit to:", `${API_BASE_URL}/leads`);
     
     setLoading(true);
     setError('');
     setSubmitted(false);
+
+    // Create an abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
     try {
       const response = await fetch(`${API_BASE_URL}/leads`, {
@@ -28,31 +32,51 @@ export default function ContactForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
+        signal: controller.signal
       });
 
-      console.log("Response status:", response.status); // Debug Log
+      clearTimeout(timeoutId);
+      console.log("Response status:", response.status);
 
       if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        
+        // If it's a duplicate submission (400 error), show the specific message
+        if (response.status === 400 && errorData.message) {
+          setError(errorData.message);
+        } else {
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        }
+        return;
       }
 
       const data = await response.json();
-      console.log("Response data:", data); // Debug Log
+      console.log("Response data:", data);
 
-      setSubmitted(true);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        projectType: '',
-        message: ''
-      });
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => setSubmitted(false), 5000);
+      if (data.success) {
+        setSubmitted(true);
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          projectType: '',
+          message: ''
+        });
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        setError(data.message || 'Failed to submit. Please try again.');
+      }
     } catch (error) {
-      console.error("Fetch error details:", error); // Debug Log
-      setError('Unable to submit form. Please check your connection or try calling us directly.');
+      clearTimeout(timeoutId);
+      console.error("Fetch error details:", error);
+      
+      if (error.name === 'AbortError') {
+        setError('Request timeout. Your form may have been submitted. Please check or call us at 7419740060.');
+      } else {
+        setError('Unable to submit form. Please call us directly at 7419740060.');
+      }
     } finally {
       setLoading(false);
     }
