@@ -31,26 +31,28 @@ export default function ContactForm() {
         body: JSON.stringify(formData)
       });
 
-      const data = await response.json();
+      console.log("Response status:", response.status); // Debug Log
 
-      if (response.ok) {
-        setSubmitted(true);
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          projectType: '',
-          message: ''
-        });
-        // Auto-hide success message after 5 seconds
-        setTimeout(() => setSubmitted(false), 5000);
-      } else {
-        console.error("Server responded with:", response.status, response.statusText); // Debug Log
-        setError(data.message || 'Failed to submit. Please try again.');
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log("Response data:", data); // Debug Log
+
+      setSubmitted(true);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        projectType: '',
+        message: ''
+      });
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => setSubmitted(false), 5000);
     } catch (error) {
       console.error("Fetch error details:", error); // Debug Log
-      setError('Network error. Please check your connection and try again.');
+      setError('Unable to submit form. Please check your connection or try calling us directly.');
     } finally {
       setLoading(false);
     }
