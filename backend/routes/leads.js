@@ -42,15 +42,24 @@ router.post('/', async (req, res) => {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
           auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
           },
-          timeout: 5000 // 5 second timeout for email
+          tls: {
+            rejectUnauthorized: false
+          }
         });
 
+        // Verify transporter configuration
+        await transporter.verify();
+        console.log('Email transporter verified successfully');
+
         const mailOptions = {
-          from: process.env.EMAIL_USER,
+          from: `"Vertical Elevators" <${process.env.EMAIL_USER}>`,
           to: process.env.EMAIL_USER,
           subject: 'New Lead from Vertical Elevator Landing Page',
           html: `
@@ -59,14 +68,18 @@ router.post('/', async (req, res) => {
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>Phone:</strong> ${phone}</p>
             <p><strong>Project Type:</strong> ${projectType}</p>
-            <p><strong>Message:</strong> ${message}</p>
+            <p><strong>Message:</strong> ${message || 'No message provided'}</p>
+            <hr>
+            <p><small>Submitted on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</small></p>
           `
         };
 
-        await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
       } catch (emailError) {
-        console.error('Email sending failed:', emailError.message);
+        console.error('Email sending failed - Full error:', emailError);
+        console.error('Error message:', emailError.message);
+        console.error('Error code:', emailError.code);
         // Fail silently - don't affect the user experience
       }
     });
@@ -103,14 +116,20 @@ router.patch('/:id/status', async (req, res) => {
       try {
         const transporter = nodemailer.createTransport({
           service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 587,
+          secure: false,
           auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
+          },
+          tls: {
+            rejectUnauthorized: false
           }
         });
 
         const mailOptions = {
-          from: process.env.EMAIL_USER,
+          from: `"Vertical Elevators" <${process.env.EMAIL_USER}>`,
           to: process.env.EMAIL_USER,
           subject: 'Lead Status Updated: Contacted',
           html: `
@@ -125,6 +144,7 @@ router.patch('/:id/status', async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions);
+        console.log('Status update email sent successfully');
       } catch (emailError) {
         console.error('Status update email failed:', emailError.message);
         // Continue silently
