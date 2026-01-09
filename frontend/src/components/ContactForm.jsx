@@ -13,14 +13,14 @@ export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [submitStatus, setSubmitStatus] = useState('idle'); // Added based on instruction's usage
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Attempting to submit to:", `${API_BASE_URL}/leads`); // Debug Log
     
     setLoading(true);
-    setSubmitStatus('idle');
+    setError('');
+    setSubmitted(false);
 
     try {
       const response = await fetch(`${API_BASE_URL}/leads`, {
@@ -39,17 +39,18 @@ export default function ContactForm() {
           name: '',
           email: '',
           phone: '',
-          projectType: 'residential',
+          projectType: '',
           message: ''
         });
-        setSubmitStatus('success');
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => setSubmitted(false), 5000);
       } else {
         console.error("Server responded with:", response.status, response.statusText); // Debug Log
-        setSubmitStatus('error');
+        setError(data.message || 'Failed to submit. Please try again.');
       }
     } catch (error) {
       console.error("Fetch error details:", error); // Debug Log
-      setSubmitStatus('error');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
