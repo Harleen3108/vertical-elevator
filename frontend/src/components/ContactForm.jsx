@@ -16,8 +16,10 @@ export default function ContactForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("Attempting to submit to:", `${API_BASE_URL}/leads`); // Debug Log
+    
     setLoading(true);
-    setSubmitStatus('idle'); // Set status to idle at the start of submission
+    setSubmitStatus('idle');
 
     try {
       const response = await fetch(`${API_BASE_URL}/leads`, {
@@ -30,16 +32,23 @@ export default function ContactForm() {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (response.ok) {
         setSubmitted(true);
-        setFormData({ name: '', email: '', phone: '', projectType: '', message: '' });
-        setTimeout(() => setSubmitted(false), 5000);
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          projectType: 'residential',
+          message: ''
+        });
+        setSubmitStatus('success');
       } else {
-        setError('Something went wrong. Please try again.');
+        console.error("Server responded with:", response.status, response.statusText); // Debug Log
+        setSubmitStatus('error');
       }
-    } catch (err) {
-      setError('Failed to submit. Please try again later.');
-      console.error(err);
+    } catch (error) {
+      console.error("Fetch error details:", error); // Debug Log
+      setSubmitStatus('error');
     } finally {
       setLoading(false);
     }
