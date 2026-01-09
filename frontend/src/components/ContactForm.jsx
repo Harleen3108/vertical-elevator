@@ -12,15 +12,15 @@ export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [submitStatus, setSubmitStatus] = useState('idle'); // Added based on instruction's usage
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setError('');
+    setSubmitStatus('idle'); // Set status to idle at the start of submission
 
     try {
-      const API_URL = 'http://localhost:5000/api';
-      
-      const response = await fetch(`${API_URL}/leads`, {
+      const response = await fetch(`${API_BASE_URL}/leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Mail, Phone, Building, MessageSquare, Calendar, RefreshCcw } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
+import { API_BASE_URL } from '../config';
+
 export default function AdminDashboard() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,7 +12,7 @@ export default function AdminDashboard() {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/leads');
+      const response = await fetch(`${API_BASE_URL}/leads`);
       if (!response.ok) {
         throw new Error('Failed to fetch leads');
       }
@@ -31,7 +33,7 @@ export default function AdminDashboard() {
 
   const updateStatus = async (id, newStatus) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/leads/${id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/leads/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })

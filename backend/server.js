@@ -17,6 +17,10 @@ mongoose.connect(process.env.MONGODB_URI, {
   .catch(err => console.log('MongoDB Connection Error:', err));
 
 // Routes
+app.get('/', (req, res) => {
+  res.send('API is running...');
+});
+
 app.use('/api/leads', require('./routes/leads'));
 
 const PORT = process.env.PORT || 5000;
