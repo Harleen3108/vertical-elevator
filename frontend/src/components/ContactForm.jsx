@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function ContactForm() {
   const [formData, setFormData] = useState({

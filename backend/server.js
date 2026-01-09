@@ -18,6 +18,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Routes
 app.get('/', (req, res) => {
+  console.log('Root route accessed!'); // Debug Log
   res.send('API is running...');
 });
 
