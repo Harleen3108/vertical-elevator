@@ -57,7 +57,7 @@ export default function LandingPage() {
       </section>
 
       {/* Featured Services Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-blue-50 via-blue-100 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-blue-900 mb-4">
@@ -183,7 +183,7 @@ export default function LandingPage() {
       </section>
 
       {/* Say Goodbye to Stairs Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-blue-50 via-blue-100 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-blue-900 mb-6">

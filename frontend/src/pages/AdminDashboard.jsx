@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Mail, Phone, Building, MessageSquare, Calendar, RefreshCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, User, Mail, Phone, Building, MessageSquare, Calendar, RefreshCcw, LogOut } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
 import { API_BASE_URL } from '../config';
@@ -8,11 +9,35 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      navigate('/admin/login');
+      return;
+    }
+    fetchLeads();
+  }, [navigate]);
 
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/leads`);
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_BASE_URL}/leads`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        navigate('/admin/login');
+        return;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch leads');
       }
@@ -27,18 +52,25 @@ export default function AdminDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
   const updateStatus = async (id, newStatus) => {
     try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`${API_BASE_URL}/leads/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ status: newStatus })
       });
       
+      if (response.status === 401) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        navigate('/admin/login');
+        return;
+      }
+
       if (response.ok) {
         setLeads(leads.map(lead => 
           lead._id === id ? { ...lead, status: newStatus } : lead
@@ -47,6 +79,12 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Failed to update status:', err);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    navigate('/admin/login');
   };
 
   const formatDate = (dateString) => {
@@ -65,9 +103,20 @@ export default function AdminDashboard() {
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <span className="text-xl font-bold">Vertical Elevators Admin</span>
-            <a href="/" className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Back to Site
-            </a>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-300">
+                {JSON.parse(localStorage.getItem('adminUser') || '{}').username}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
+              >
+                <LogOut className="w-4 h-4" /> Logout
+              </button>
+              <a href="/" className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Back to Site
+              </a>
+            </div>
           </div>
         </div>
       </nav>

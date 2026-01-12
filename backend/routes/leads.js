@@ -1,41 +1,35 @@
 const express = require('express');
 const router = express.Router();
 const Lead = require('../models/Lead');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
+const authMiddleware = require('../middleware/auth');
 
-// Create reusable transporter
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-};
+// Configure SendGrid
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Test email endpoint
 router.get('/test-email', async (req, res) => {
   try {
-    const transporter = createTransporter();
-    
-    // Verify connection
-    await transporter.verify();
-    console.log('✓ Email server connection verified');
-    
-    // Send test email
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER,
+    const msg = {
+      to: process.env.ADMIN_EMAIL,
+      from: {
+        email: process.env.SENDGRID_FROM_EMAIL,
+        name: process.env.SENDGRID_FROM_NAME
+      },
       subject: 'Test Email from Vertical Elevators',
-      html: '<h2>Test Email</h2><p>If you receive this, email is working!</p>'
-    });
+      html: '<h2>Test Email</h2><p>If you receive this, SendGrid email is working!</p>'
+    };
     
-    console.log('✓ Test email sent:', info.messageId);
-    res.json({ success: true, message: 'Test email sent successfully', messageId: info.messageId });
+    const response = await sgMail.send(msg);
+    console.log('✓ Test email sent via SendGrid');
+    res.json({ success: true, message: 'Test email sent successfully via SendGrid' });
   } catch (error) {
-    console.error('✗ Email test failed:', error);
-    res.status(500).json({ success: false, error: error.message, code: error.code });
+    console.error('✗ SendGrid email test failed:', error.response?.body || error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message, 
+      details: error.response?.body 
+    });
   }
 });
 
@@ -70,59 +64,49 @@ router.post('/', async (req, res) => {
 
     await newLead.save();
     console.log('✓ Lead saved to database:', newLead._id);
+    console.log('📧 New lead details:', { name, email, phone, projectType });
 
-    // Send response immediately - don't wait for email
-    res.status(201).json({ success: true, message: 'Lead submitted successfully' });
-
-    // Send email in background
+    // Send email notification to admin using SendGrid
     setImmediate(async () => {
       try {
-        const transporter = createTransporter();
-        
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.EMAIL_USER,
-          subject: '🔔 New Lead from Vertical Elevators Website',
+        const msg = {
+          to: process.env.ADMIN_EMAIL,
+          from: {
+            email: process.env.SENDGRID_FROM_EMAIL,
+            name: process.env.SENDGRID_FROM_NAME
+          },
+          subject: `New Lead: ${name} - ${projectType}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1e40af;">New Lead Received</h2>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr style="background-color: #f3f4f6;">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Name:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${name}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Email:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${email}</td>
-                </tr>
-                <tr style="background-color: #f3f4f6;">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Phone:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${phone}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Project Type:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${projectType}</td>
-                </tr>
-                <tr style="background-color: #f3f4f6;">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Message:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${message || 'No message provided'}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>Submitted:</strong></td>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</td>
-                </tr>
-              </table>
+              <h2 style="color: #2563eb;">New Lead Submission</h2>
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px;">
+                <p><strong>Name:</strong> ${name}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Phone:</strong> ${phone}</p>
+                <p><strong>Project Type:</strong> ${projectType}</p>
+                <p><strong>Message:</strong></p>
+                <p style="background-color: white; padding: 15px; border-radius: 4px;">${message || 'No message provided'}</p>
+              </div>
+              <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
+                This lead was submitted on ${new Date().toLocaleString()}
+              </p>
             </div>
           `
         };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✓ Email sent successfully:', info.messageId);
+        
+        await sgMail.send(msg);
+        console.log('✓ Lead notification email sent via SendGrid');
       } catch (emailError) {
-        console.error('✗ Email sending failed:', emailError.message);
-        console.error('Error code:', emailError.code);
+        console.error('✗ SendGrid email failed:', emailError.response?.body || emailError.message);
       }
     });
+
+    // Send response
+    res.status(201).json({ 
+      success: true, 
+      message: 'Lead submitted successfully'
+    });
+
   } catch (error) {
     console.error('✗ Lead save failed:', error);
     if (!res.headersSent) {
@@ -131,8 +115,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET - Get all leads (for admin)
-router.get('/', async (req, res) => {
+// GET - Get all leads (for admin) - Protected route
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const leads = await Lead.find().sort({ createdAt: -1 });
     res.json(leads);
@@ -141,8 +125,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PATCH - Update lead status
-router.patch('/:id/status', async (req, res) => {
+// PATCH - Update lead status - Protected route
+router.patch('/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
     const lead = await Lead.findByIdAndUpdate(
@@ -155,33 +139,32 @@ router.patch('/:id/status', async (req, res) => {
     if (status === 'Contacted' && lead) {
       setImmediate(async () => {
         try {
-          const transporter = nodemailer.createTransporter({
-            service: 'gmail',
-            auth: {
-              user: process.env.EMAIL_USER,
-              pass: process.env.EMAIL_PASS
-            }
-          });
-
-          const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: process.env.EMAIL_USER,
+          const msg = {
+            to: process.env.ADMIN_EMAIL,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL,
+              name: process.env.SENDGRID_FROM_NAME
+            },
             subject: 'Lead Status Updated: Contacted',
             html: `
-              <h2>Lead Marked as Contacted</h2>
-              <p>The following lead has been successfully contacted:</p>
-              <p><strong>Name:</strong> ${lead.name}</p>
-              <p><strong>Email:</strong> ${lead.email}</p>
-              <p><strong>Phone:</strong> ${lead.phone}</p>
-              <p><strong>Project Type:</strong> ${lead.projectType}</p>
-              <p><strong>Status:</strong> <span style="color: green; font-weight: bold;">Contacted</span></p>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #16a34a;">Lead Marked as Contacted</h2>
+                <p>The following lead has been successfully contacted:</p>
+                <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; border-left: 4px solid #16a34a;">
+                  <p><strong>Name:</strong> ${lead.name}</p>
+                  <p><strong>Email:</strong> ${lead.email}</p>
+                  <p><strong>Phone:</strong> ${lead.phone}</p>
+                  <p><strong>Project Type:</strong> ${lead.projectType}</p>
+                  <p><strong>Status:</strong> <span style="color: #16a34a; font-weight: bold;">Contacted</span></p>
+                </div>
+              </div>
             `
           };
 
-          await transporter.sendMail(mailOptions);
-          console.log('✓ Status update email sent');
+          await sgMail.send(msg);
+          console.log('✓ Status update email sent via SendGrid');
         } catch (emailError) {
-          console.error('✗ Status update email failed:', emailError.message);
+          console.error('✗ SendGrid status email failed:', emailError.response?.body || emailError.message);
         }
       });
     }
